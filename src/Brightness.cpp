@@ -17,9 +17,11 @@ BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
-HANDLE Monitor;
+#define MAX_MONITOR_COUNT 16
+size_t MonitorCount = 0;
+HANDLE Monitor[MAX_MONITOR_COUNT];
 
-BOOL __stdcall EnumFunction(HMONITOR LogicalMonitor, HDC, LPRECT, LPARAM)
+BOOL __stdcall EnumFunction(HMONITOR LogicalMonitor, HDC, LPRECT rc, LPARAM)
 {
     DWORD Number;
     if (!GetNumberOfPhysicalMonitorsFromHMONITOR(LogicalMonitor, &Number))
@@ -39,8 +41,13 @@ BOOL __stdcall EnumFunction(HMONITOR LogicalMonitor, HDC, LPRECT, LPARAM)
         return TRUE;
     }
 
-    Monitor = Monitors[0].hPhysicalMonitor;
-    return FALSE;
+	for (size_t i = 0; i < Number; i++)
+	{
+		Monitor[MonitorCount] = Monitors[i].hPhysicalMonitor;
+		MonitorCount++;
+		if (MonitorCount > MAX_MONITOR_COUNT) return FALSE;
+	}
+    return TRUE;
 }
 
 
@@ -172,22 +179,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_HOTKEY:
         if (wParam <= 9)
         {
-            if (wParam == 8)
-            {
-                SetVCPFeature(Monitor, 0x16, 90);
-                SetVCPFeature(Monitor, 0x18, 90);
-                SetVCPFeature(Monitor, 0x1a, 90);
-                SetMonitorContrast(Monitor, 80);
-                SetMonitorBrightness(Monitor, 80);
-            }
-            else
-            {
-                SetVCPFeature(Monitor, 0x16, 40);
-                SetVCPFeature(Monitor, 0x18, 40);
-                SetVCPFeature(Monitor, 0x1a, 40);
-                SetMonitorContrast(Monitor, wParam * 100 / 7);
-                SetMonitorBrightness(Monitor, 0);
-            }
+			for (size_t i = 0; i < MonitorCount; i++)
+			{
+				if (wParam == 8)
+				{
+					SetVCPFeature(Monitor[i], 0x16, 90);
+					SetVCPFeature(Monitor[i], 0x18, 90);
+					SetVCPFeature(Monitor[i], 0x1a, 90);
+					SetMonitorContrast(Monitor[i], 80);
+					SetMonitorBrightness(Monitor[i], 80);
+				}
+				else
+				{
+					SetVCPFeature(Monitor[i], 0x16, 40);
+					SetVCPFeature(Monitor[i], 0x18, 40);
+					SetVCPFeature(Monitor[i], 0x1a, 40);
+					SetMonitorContrast(Monitor[i], wParam * 100 / 7);
+					SetMonitorBrightness(Monitor[i], 0);
+				}
+			}
         }
         break;
 
