@@ -7,6 +7,8 @@
 
 #include "targetver.h"
 
+#define INITGUID
+
 #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
 // Windows Header Files:
 #include <windows.h>
@@ -16,7 +18,11 @@
 #include <malloc.h>
 #include <memory.h>
 #include <tchar.h>
+#include <stdio.h>
 
 #include <PhysicalMonitorEnumerationAPI.h>
 #include <LowLevelMonitorConfigurationAPI.h>
 #include <HighLevelMonitorConfigurationAPI.h>
+#include <dbt.h>
+
+#include <ntddvdeo.h>

@@ -41,12 +41,12 @@ BOOL __stdcall EnumFunction(HMONITOR LogicalMonitor, HDC, LPRECT rc, LPARAM)
         return TRUE;
     }
 
-	for (size_t i = 0; i < Number; i++)
-	{
-		Monitor[MonitorCount] = Monitors[i].hPhysicalMonitor;
-		MonitorCount++;
-		if (MonitorCount > MAX_MONITOR_COUNT) return FALSE;
-	}
+    for (size_t i = 0; i < Number; i++)
+    {
+        Monitor[MonitorCount] = Monitors[i].hPhysicalMonitor;
+        MonitorCount++;
+        if (MonitorCount > MAX_MONITOR_COUNT) return FALSE;
+    }
     return TRUE;
 }
 
@@ -168,36 +168,40 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
     switch (message)
     {
-    case WM_CREATE:
+    case WM_CREATE: {
         for (int i = 0; i < 9; i++)
         {
             char Key = '1' + i;
             RegisterHotKey(hWnd, i, MOD_ALT | MOD_CONTROL, Key);
         }
-        break;
 
+        DEV_BROADCAST_DEVICEINTERFACE notificationFilter;
+        ZeroMemory(&notificationFilter, sizeof(notificationFilter));
+
+        notificationFilter.dbcc_size = sizeof(notificationFilter);
+        notificationFilter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
+        notificationFilter.dbcc_reserved = 0;
+
+        notificationFilter.dbcc_classguid = GUID_DEVINTERFACE_MONITOR;
+        RegisterDeviceNotification(hWnd, &notificationFilter, DEVICE_NOTIFY_WINDOW_HANDLE);
+        break;
+    }
     case WM_HOTKEY:
         if (wParam <= 9)
         {
-			for (size_t i = 0; i < MonitorCount; i++)
-			{
-				if (wParam == 8)
-				{
-					SetVCPFeature(Monitor[i], 0x16, 90);
-					SetVCPFeature(Monitor[i], 0x18, 90);
-					SetVCPFeature(Monitor[i], 0x1a, 90);
-					SetMonitorContrast(Monitor[i], 80);
-					SetMonitorBrightness(Monitor[i], 80);
-				}
-				else
-				{
-					SetVCPFeature(Monitor[i], 0x16, 40);
-					SetVCPFeature(Monitor[i], 0x18, 40);
-					SetVCPFeature(Monitor[i], 0x1a, 40);
-					SetMonitorContrast(Monitor[i], wParam * 100 / 7);
-					SetMonitorBrightness(Monitor[i], 0);
-				}
-			}
+            for (size_t i = 0; i < MonitorCount; i++)
+            {
+                if (wParam == 8)
+                {
+                    SetMonitorContrast(Monitor[i], 50);
+                    SetMonitorBrightness(Monitor[i], 80);
+                }
+                else
+                {
+                    SetMonitorBrightness(Monitor[i], wParam * 60 / 7);
+                    SetMonitorContrast(Monitor[i], 30);
+                }
+            }
         }
         break;
 
@@ -222,6 +226,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
+    case WM_DEVICECHANGE:
+    {
+
+        if (wParam != DBT_DEVICEARRIVAL && wParam != DBT_DEVICEREMOVECOMPLETE) break;
+
+        PDEV_BROADCAST_HDR lpdb = (PDEV_BROADCAST_HDR)lParam;
+        if (lpdb->dbch_devicetype != DBT_DEVTYP_DEVICEINTERFACE) break;
+
+        PDEV_BROADCAST_DEVICEINTERFACE devInterface = (PDEV_BROADCAST_DEVICEINTERFACE)lpdb;
+        if (!InlineIsEqualGUID(devInterface->dbcc_classguid, GUID_DEVINTERFACE_MONITOR)) break;
+
+        EnumDisplayMonitors(NULL, NULL, EnumFunction, 0);
+        break;
+    }
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
